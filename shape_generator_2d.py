@@ -1,5 +1,5 @@
 import torch
-import conv
+import conv_2d
 import matplotlib.pyplot as plt
 
 """
@@ -42,6 +42,25 @@ def generate_half_plane(normal, point, n_grid):
     
     grid[neg_ind] = 1.0
     grid[~neg_ind] = -1.0
+    return grid
+
+def generate_rectangle(center, l_x, l_y, n_grid):
+    """
+    Generate rectangle. 
+    points away from the obstacle region, and the boundary of the half plane 
+    passes through the point.
+    """
+    grid = torch.ones(n_grid, n_grid)
+    center_x = center[0]
+    center_y = center[1]
+    hl_x = int(l_x / 2)
+    hl_y = int(l_y / 2)
+    print(center_x - hl_x)
+    print(center_x + hl_x)
+    print(center_y - hl_y)
+    print(center_y + hl_y)
+    grid[center_x - hl_x : center_x + hl_x,
+         center_y - hl_y : center_y + hl_y] = -1.0
     return grid
     
 def add_shape(grid_lst, n_grid):
@@ -86,10 +105,13 @@ def compute_volume(phi):
     interior[interior < 0.0] = 1.0
     return torch.sum(interior)
 
-def plot_image(phi):
-    plt.figure()
-    plt.imshow(phi.T, cmap='gray', origin='lower')
-    plt.show()    
+def plot_image(phi, show=True):
+    if (show):
+        plt.figure()
+        plt.imshow(phi.T, cmap='gray', origin='lower')
+        plt.show()    
+    else:
+        plt.imshow(phi.T, cmap='gray', origin='lower')        
     
 def render_scene(phi, psi, n_grid):
     """

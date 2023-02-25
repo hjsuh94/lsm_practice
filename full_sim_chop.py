@@ -4,8 +4,8 @@ import torch
 import matplotlib.pyplot as plt
 import cv2
 import skfmm
-from conv_2d import *
-from shape_generator_2d import *
+from conv import *
+from shape_generator import *
 from tqdm import tqdm
 
 # 1. Hyperparameters.
@@ -19,11 +19,8 @@ rho_al_np = 1e-2
 
 # 2. Initialize grid. 
 n_grid = 128
-grid = generate_ellipse(36, 30, n_grid)
-obstacle_grid_1 = generate_half_plane([0.0, 1.0], [64, 64 - 20], n_grid)
-obstacle_grid_2 = generate_half_plane([0.0, -1.0], [64, 64 + 20], n_grid)
-obstacle_grid = add_shape([obstacle_grid_1, obstacle_grid_2], n_grid)
-
+grid = generate_ellipse(48, 48, n_grid)
+obstacle_grid = generate_rectangle([64, 64], 6, 128, n_grid)
 plot_image(obstacle_grid)
 
 plt.figure()
@@ -111,21 +108,10 @@ for iter in tqdm(range(num_iters-1)):
     zeta_t = get_zeta(psi, lambda_t, rho_al_np)
     V_t = compute_volume(phi_t)
     volume_penalty = rho_al_V * (V_t - V_0)    
-    dL_t = 1e-3 * phi_t_chamfer + 1e-1 * phi_t_curvature + volume_penalty + zeta_t
-
-    # CFL number.
-    # Decompose dL_t * nabla phi_n to component vectors
-    phi_t_grad_normalized = phi_t_grad / phi_t_grad_norm[:,:,None]
-    dL_t_vec = phi_t_grad_normalized * dL_t[:,:,None] 
-    v_max = torch.max(torch.abs(torch.sum(dL_t_vec, dim=2)))
-
-    cfl = v_max * h 
-    print("CFL: " + str(cfl))
-    h_cfl = 0.1 / v_max
-
+    dL_t = 1e-3 * phi_t_chamfer + volume_penalty + zeta_t
 
     # 3.6 Update the signed distance field via advection
-    phi_next = phi_t + h_cfl * dL_t * phi_t_grad_norm
+    phi_next = phi_t + h * dL_t * phi_t_grad_norm
 
     # 3.7 Update the storages
     phi_t_arr[:,:,iter+1] = phi_next    
@@ -143,7 +129,6 @@ for iter in tqdm(range(num_iters-1)):
 print("iteration took {:.5f} seconds".format(time.time() - t0))
 
 # 4. Plot the array
-image_count = 0
 for iter in tqdm(range(0, num_iters-1, 10)):
     plt.figure()
     plt.subplot(1,2,1)
@@ -153,7 +138,5 @@ for iter in tqdm(range(0, num_iters-1, 10)):
     plt.subplot(1,2,2)    
     plt.title("Dual")
     plt.imshow(lambda_t_arr[:,:,iter].T, cmap='gray', origin='lower')
-    plt.savefig("data_press/{:03d}.png".format(image_count))
+    plt.savefig("data/{:03d}.png".format(iter))
     plt.close()
-
-    image_count += 1
